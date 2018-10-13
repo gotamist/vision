@@ -11,4 +11,7 @@ actually do (edge detection, for example).
 And in 3_Facial_Keypoint_Detection_Complete_Pipeline.ipynb, Haar
 cascades are employed to detect any number of faces in images.  Then,
 the previously trained CNN is used to detect the keypoints for each
-face that is detected by the Haar Casscades.
+face that is detected by the Haar cascades.
+
+Changes were made in files 2_...and 3_... to allow them to train the
+model on multiple GPUs in parallel. 
