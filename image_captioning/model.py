@@ -23,8 +23,19 @@ class EncoderCNN(nn.Module):
 
 class DecoderRNN(nn.Module):
     def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
-        pass
-    
+        super(DecoderRNN, self).__init__()
+        
+        self.hidden_size=hidden_size
+
+        # self.word_embeddings = nn.Embedding(vocab_size, embed_size)
+        # Define the LSTM  
+        self.lstm=nn.LSTM( embed_size, hidden_size )
+        self.hidden2output=nn.Linear( hidden_size, 1 ) #Can produce the index instead of a vector of size vocab_size
+
+        #now, initialize the hidden state
+        self.hidden=(torch.zeros( num_layers, 1, self.hidden_size),
+                     torch.zeros( num_layers, 1, self.hidden_size))
+        
     def forward(self, features, captions):
         pass
 
