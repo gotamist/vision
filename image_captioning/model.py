@@ -27,18 +27,35 @@ class DecoderRNN(nn.Module):
         
         self.hidden_size=hidden_size
 
-        # self.word_embeddings = nn.Embedding(vocab_size, embed_size)
-        # Define the LSTM  
-        self.lstm=nn.LSTM( embed_size, hidden_size )
-        self.hidden2output=nn.Linear( hidden_size, 1 ) #Can produce the index instead of a vector of size vocab_size
+        # We'll use this to embed each output as the next input
+        self.word_embedding = nn.Embedding(vocab_size, embed_size) #should it be vocab_size instead of 1?
 
-        #now, initialize the hidden state
-        self.hidden=(torch.zeros( num_layers, 1, self.hidden_size),
-                     torch.zeros( num_layers, 1, self.hidden_size))
+        # Define the LSTM  
+        self.lstm=nn.LSTM( embed_size, hidden_size, num_layers=num_layers, batch_first=True )
+
+        #produce the output
+        self.hidden2output=nn.Linear(hidden_size,vocab_size ) #Can produce the index instead of a vector of size vocab_size
+        
+#        self.hidden = (torch.zeros( num_layers, batch_size, self.hidden_size),
+#                          torch.zeros( num_layers, batch_size, self.hidden_size)  )
+
+        #Function to initialize the hidden state from forward()
+#    def init_hidden(num_layers, batch-size):
+#            return ( torch.zeros( num_layers, batch_size, self.hidden_size),
+#                          torch.zeros( num_layers, batch_size, self.hidden_size) )
         
     def forward(self, features, captions):
-        pass
-
+        # Define the feedforward behavior of the model
+        # Note, start_word has index 0 and end_word is 1
+#        self.hidden = init_hidden(num_layers, batch_size)
+        caption_embeddings = self.word_embedding( captions[:,:-1])
+        lstm_input = torch.cat( (features.unsqueeze(1), caption_embeddings), dim=1 )
+       
+        lstm_out, _ = self.lstm( lstm_input )  
+        outputs = self.hidden2output( lstm_out )
+        
+        return outputs 
+        
     def sample(self, inputs, states=None, max_len=20):
         " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
         pass
