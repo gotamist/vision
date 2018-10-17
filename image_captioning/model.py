@@ -36,26 +36,40 @@ class DecoderRNN(nn.Module):
         #produce the output
         self.hidden2output=nn.Linear(hidden_size,vocab_size ) #Can produce the index instead of a vector of size vocab_size
         
-#        self.hidden = (torch.zeros( num_layers, batch_size, self.hidden_size),
-#                          torch.zeros( num_layers, batch_size, self.hidden_size)  )
-
-        #Function to initialize the hidden state from forward()
-#    def init_hidden(num_layers, batch-size):
-#            return ( torch.zeros( num_layers, batch_size, self.hidden_size),
-#                          torch.zeros( num_layers, batch_size, self.hidden_size) )
         
     def forward(self, features, captions):
         # Define the feedforward behavior of the model
         # Note, start_word has index 0 and end_word is 1
 #        self.hidden = init_hidden(num_layers, batch_size)
-        caption_embeddings = self.word_embedding( captions[:,:-1])
-        lstm_input = torch.cat( (features.unsqueeze(1), caption_embeddings), dim=1 )
+        caption_embeddings = self.word_embedding( captions[:,:-1]) #cutting of the end_word is purely to pass the assert in 1_Preliminaries
+        #unsqueeze is to repeat across the same vector across time.  It plays the role of RepeatVector in keras    
+        lstm_input = torch.cat( (features.unsqueeze(1), caption_embeddings), dim=1 ) 
        
         lstm_out, _ = self.lstm( lstm_input )  
         outputs = self.hidden2output( lstm_out )
         
         return outputs 
         
-    def sample(self, inputs, states=None, max_len=20):
+    def sample(self, inputs, hidden_states=None, max_len=20):
         " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
-        pass
+#        word_idx = 0 #the start-word
+        
+        output_indices = []
+        for i in range(max_len):
+            lstm_out, states = self.lstm( inputs, hidden_states )
+#            print( "lstm_out: ", lstm_out[0].size()  )
+            output = self.hidden2output( lstm_out )
+#            print( output[0])
+#            print("output: ", output[0].size())
+            maxword = output[0].argmax(dim=1)
+#            print( "maxindex: ", maxindex)
+#            print( len( output[0] ) )
+#            output_indices.append( maxword.cpu().numpy()  )
+#            word_arr = int( maxword.data[0].cpu().numpy() )
+#            print(  word_arr[0] )
+            output_indices.append( int( maxword.data[0].cpu().numpy() ) )
+            inputs = self.word_embedding( maxword.unsqueeze(0) ) 
+            
+#        output = [ item[0] for item in output_indices]                
+#        output = [ data_loader.dataset.vocab.idx2word(idx) for idx in output_indices ]
+        return  output_indices
