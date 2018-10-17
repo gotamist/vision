@@ -52,24 +52,23 @@ class DecoderRNN(nn.Module):
         
     def sample(self, inputs, hidden_states=None, max_len=20):
         " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
-#        word_idx = 0 #the start-word
         
         output_indices = []
         for i in range(max_len):
-            lstm_out, states = self.lstm( inputs, hidden_states )
-#            print( "lstm_out: ", lstm_out[0].size()  )
+            lstm_out, hidden_states = self.lstm( inputs, hidden_states )
             output = self.hidden2output( lstm_out )
-#            print( output[0])
-#            print("output: ", output[0].size())
-            maxword = output[0].argmax(dim=1)
-#            print( "maxindex: ", maxindex)
-#            print( len( output[0] ) )
-#            output_indices.append( maxword.cpu().numpy()  )
-#            word_arr = int( maxword.data[0].cpu().numpy() )
-#            print(  word_arr[0] )
-            output_indices.append( int( maxword.data[0].cpu().numpy() ) )
+#            maxword = output[0].argmax(dim=1)
+            maxword = output.argmax(dim=1)
+            word_index = int( maxword.data[0].cpu().numpy() )
+            output_indices.append( word_index  )
             inputs = self.word_embedding( maxword.unsqueeze(0) ) 
-            
-#        output = [ item[0] for item in output_indices]                
-#        output = [ data_loader.dataset.vocab.idx2word(idx) for idx in output_indices ]
         return  output_indices
+    
+#        sample_ids = []
+#        for i in range(max_len):
+#            lstm_features, hidden_states = self.lstm(inputs, hidden_states)
+#            lstm_features = self.hidden2output(lstm_features.squeeze(1))
+#            predicted = lstm_features.max(1)[1]   
+#            sample_ids.append(predicted.item())
+#            inputs = self.word_embedding(predicted).unsqueeze(1)             
+#        return sample_ids
