@@ -22,7 +22,7 @@ class EncoderCNN(nn.Module):
     
 
 class DecoderRNN(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
+    def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1, drop_ratio=0.2):
         super(DecoderRNN, self).__init__()
         
         self.hidden_size=hidden_size
@@ -31,10 +31,13 @@ class DecoderRNN(nn.Module):
         self.word_embedding = nn.Embedding(vocab_size, embed_size) #should it be vocab_size instead of 1?
 
         # Define the LSTM  
-        self.lstm=nn.LSTM( embed_size, hidden_size, num_layers=num_layers, batch_first=True )
+        self.lstm=nn.LSTM( embed_size, hidden_size, num_layers=num_layers, dropout=drop_ratio, batch_first=True )
 
         #produce the output
         self.hidden2output=nn.Linear(hidden_size,vocab_size ) #Can produce the index instead of a vector of size vocab_size
+        
+        #dropout
+        self.drop_layer = nn.Dropout(p=drop_ratio)
         
         
     def forward(self, features, captions):
@@ -44,8 +47,8 @@ class DecoderRNN(nn.Module):
         caption_embeddings = self.word_embedding( captions[:,:-1]) #cutting of the end_word is purely to pass the assert in 1_Preliminaries
         #unsqueeze is to repeat across the same vector across time.  It plays the role of RepeatVector in keras    
         lstm_input = torch.cat( (features.unsqueeze(1), caption_embeddings), dim=1 ) 
-       
-        lstm_out, _ = self.lstm( lstm_input )  
+        lstm_out, _ = self.lstm( lstm_input )
+        lstm_out = self.drop_layer( lstm_out )
         outputs = self.hidden2output( lstm_out )
         
         return outputs 
@@ -56,9 +59,9 @@ class DecoderRNN(nn.Module):
         output_indices = []
         for i in range(max_len):
             lstm_out, hidden_states = self.lstm( inputs, hidden_states )
+            lstm_out = self.drop_layer( lstm_out )
             output = self.hidden2output( lstm_out )
-#            maxword = output[0].argmax(dim=1)
-            maxword = output.argmax(dim=1)
+            maxword = output[0].argmax(dim=1)
             word_index = int( maxword.data[0].cpu().numpy() )
             output_indices.append( word_index  )
             inputs = self.word_embedding( maxword.unsqueeze(0) ) 
