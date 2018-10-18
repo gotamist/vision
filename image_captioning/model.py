@@ -42,13 +42,11 @@ class DecoderRNN(nn.Module):
         
     def forward(self, features, captions):
         # Define the feedforward behavior of the model
-        # Note, start_word has index 0 and end_word is 1
-#        self.hidden = init_hidden(num_layers, batch_size)
         caption_embeddings = self.word_embedding( captions[:,:-1]) #cutting of the end_word is purely to pass the assert in 1_Preliminaries
         #unsqueeze is to repeat across the same vector across time.  It plays the role of RepeatVector in keras    
         lstm_input = torch.cat( (features.unsqueeze(1), caption_embeddings), dim=1 ) 
         lstm_out, _ = self.lstm( lstm_input )
-        lstm_out = self.drop_layer( lstm_out )
+#        lstm_out = self.drop_layer( lstm_out )
         outputs = self.hidden2output( lstm_out )
         
         return outputs 
@@ -59,7 +57,7 @@ class DecoderRNN(nn.Module):
         output_indices = []
         for i in range(max_len):
             lstm_out, hidden_states = self.lstm( inputs, hidden_states )
-            lstm_out = self.drop_layer( lstm_out )
+#            lstm_out = self.drop_layer( lstm_out )
             output = self.hidden2output( lstm_out )
             maxword = output[0].argmax(dim=1)
             word_index = int( maxword.data[0].cpu().numpy() )
@@ -67,11 +65,4 @@ class DecoderRNN(nn.Module):
             inputs = self.word_embedding( maxword.unsqueeze(0) ) 
         return  output_indices
     
-#        sample_ids = []
-#        for i in range(max_len):
-#            lstm_features, hidden_states = self.lstm(inputs, hidden_states)
-#            lstm_features = self.hidden2output(lstm_features.squeeze(1))
-#            predicted = lstm_features.max(1)[1]   
-#            sample_ids.append(predicted.item())
-#            inputs = self.word_embedding(predicted).unsqueeze(1)             
-#        return sample_ids
+
