@@ -38,7 +38,7 @@ class DecoderRNN(nn.Module):
 
         #produce the output
         self.hidden2output=nn.Linear(hidden_size,vocab_size ) #Can produce the index instead of a vector of size vocab_size
-        # it would be better to name this lstm2word_idx, but my trained model already has this name in the dict now.
+
         #dropout
         self.drop_layer = nn.Dropout(p=drop_ratio)
         
@@ -70,7 +70,7 @@ class DecoderRNN(nn.Module):
             inputs = self.word_embedding( maxword.unsqueeze(0) ) 
         return  output_indices
     
-    def beam_sample(self, inputs, hidden_states=None, max_len=20, beam_width=8):
+    def beam_sample(self, inputs, hidden_states=None, max_len=20, beam_width=8, return_best_only=True):
         """Accept a pre-processed image tensor and return the top predicted 
         sentences using a beam search.
         """
@@ -88,7 +88,7 @@ class DecoderRNN(nn.Module):
                 log_prob = F.log_softmax( output, -1 ) # do not use separate softmax and log - numerical issues (roundoff)
 #                print(log_prob.size())
                 # now sort and pick the highest beam_width probabilities
-                scores, indices = log_prob.topk( beam_width, 1 )
+                scores, indices = log_prob.topk( beam_width, -1 )
                 indices = indices.squeeze(0)
 #                print(indices.size())
 #                print( indices[0].item())
@@ -97,7 +97,8 @@ class DecoderRNN(nn.Module):
 #                    extended_stub = stub_info[3][:] # this will also perform the function of deepcopy
                     extended_stub.append( indices[i].item() )
 #                    print(scores[0][i].item())
-                    new_score = stub_info[2] + scores[0][i].item()
+                    new_score = copy.deepcopy(stub_info[2])
+                    new_score += scores[0][i].item()
 #                    print(indices[i].size())
 #                    print(indices[i].unsqueeze(0).size())
 #                    print((indices[i].unsqueeze(0)).unsqueeze(0).size())
@@ -108,7 +109,8 @@ class DecoderRNN(nn.Module):
                 sequence_pack = store[ :beam_width ]
 
         sentences_to_return = [  stub_info[-1] for stub_info in sequence_pack ]
-        return sentences_to_return[0] #just return the top one (remove indexing if you want to see them all)                    
+        if return_best_only: sentences_to_return = sentences_to_return[0]
+        return sentences_to_return                    
             
                 
                 
