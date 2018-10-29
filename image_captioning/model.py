@@ -108,7 +108,7 @@ class DecoderRNN(nn.Module):
                 sequence_pack = store[ :beam_width ]
 
         sentences_to_return = [  stub_info[-1] for stub_info in sequence_pack ]
-        return sentences_to_return #[0] #just return the top one (remove indexing if you want to see them all)                    
+        return sentences_to_return[0] #just return the top one (remove indexing if you want to see them all)                    
             
                 
                 
