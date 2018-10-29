@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torchvision.models as models
+import copy
+import numpy as np
+from torch.nn import functional as F
 
 
 class EncoderCNN(nn.Module):
@@ -22,7 +25,7 @@ class EncoderCNN(nn.Module):
     
 
 class DecoderRNN(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1, drop_ratio=0.2):
+    def __init__(self, embed_size, hidden_size, vocab_size, num_layers=2, drop_ratio=0.2):
         super(DecoderRNN, self).__init__()
         
         self.hidden_size=hidden_size
@@ -35,9 +38,12 @@ class DecoderRNN(nn.Module):
 
         #produce the output
         self.hidden2output=nn.Linear(hidden_size,vocab_size ) #Can produce the index instead of a vector of size vocab_size
-        
+        # it would be better to name this lstm2word_idx, but my trained model already has this name in the dict now.
         #dropout
         self.drop_layer = nn.Dropout(p=drop_ratio)
+        
+        #softmax
+        self.l_softm = nn.LogSoftmax(dim=-1)
         
         
     def forward(self, features, captions):
@@ -52,12 +58,11 @@ class DecoderRNN(nn.Module):
         return outputs 
         
     def sample(self, inputs, hidden_states=None, max_len=20):
-        " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
+        "This is the simple greedy sampler. It accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
         
         output_indices = []
         for i in range(max_len):
             lstm_out, hidden_states = self.lstm( inputs, hidden_states )
-#            lstm_out = self.drop_layer( lstm_out )
             output = self.hidden2output( lstm_out )
             maxword = output[0].argmax(dim=1)
             word_index = int( maxword.data[0].cpu().numpy() )
@@ -65,4 +70,47 @@ class DecoderRNN(nn.Module):
             inputs = self.word_embedding( maxword.unsqueeze(0) ) 
         return  output_indices
     
+    def beam_sample(self, inputs, hidden_states=None, max_len=20, beam_width=8):
+        """Accept a pre-processed image tensor and return the top predicted 
+        sentences using a beam search.
+        """
+        sequence_pack = [ [ inputs, hidden_states, 0, [] ] ] #start with a single input, expant to BW in subsequent steps
+        
+        for j in range(max_len):
+            # list to keep beam_width^2 potential sequences, of which, we will retain the best beam_width ones before moving to the next j
+            store = []
+            elem=0
+            for stub_info in sequence_pack:
+#                print("element: ", elem, "in j=", j)
+                elem+=1
+                lstm_out, hidden_states = self.lstm( stub_info[0], stub_info[1] )
+                output = self.hidden2output( lstm_out.squeeze(1) )
+                log_prob = F.log_softmax( output, -1 ) # do not use separate softmax and log - numerical issues (roundoff)
+#                print(log_prob.size())
+                # now sort and pick the highest beam_width probabilities
+                scores, indices = log_prob.topk( beam_width, 1 )
+                indices = indices.squeeze(0)
+#                print(indices.size())
+#                print( indices[0].item())
+                for i in range(beam_width):
+                    extended_stub = copy.deepcopy(stub_info[3]) #the original stub 
+#                    extended_stub = stub_info[3][:] # this will also perform the function of deepcopy
+                    extended_stub.append( indices[i].item() )
+#                    print(scores[0][i].item())
+                    new_score = stub_info[2] + scores[0][i].item()
+#                    print(indices[i].size())
+#                    print(indices[i].unsqueeze(0).size())
+#                    print((indices[i].unsqueeze(0)).unsqueeze(0).size())
+                    inputs = self.word_embedding( indices[i].unsqueeze(0).unsqueeze(0) )
+                    store.append( [inputs, hidden_states, new_score, extended_stub] )
+                #From this store of beam_width^2 candidate extended_stubs, pick the beam_width ones with the highest new_score values
+                store.sort( key=lambda x:x[2], reverse=True)
+                sequence_pack = store[ :beam_width ]
 
+        sentences_to_return = [  stub_info[-1] for stub_info in sequence_pack ]
+        return sentences_to_return #[0] #just return the top one (remove indexing if you want to see them all)                    
+            
+                
+                
+                
+        
