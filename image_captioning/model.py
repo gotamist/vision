@@ -5,7 +5,6 @@ import copy
 import numpy as np
 from torch.nn import functional as F
 
-
 class EncoderCNN(nn.Module):
     def __init__(self, embed_size):
         super(EncoderCNN, self).__init__()
@@ -79,29 +78,18 @@ class DecoderRNN(nn.Module):
         for j in range(max_len):
             # list to keep beam_width^2 potential sequences, of which, we will retain the best beam_width ones before moving to the next j
             store = []
-            elem=0
             for stub_info in sequence_pack:
-#                print("element: ", elem, "in j=", j)
-                elem+=1
                 lstm_out, hidden_states = self.lstm( stub_info[0], stub_info[1] )
                 output = self.hidden2output( lstm_out.squeeze(1) )
                 log_prob = F.log_softmax( output, -1 ) # do not use separate softmax and log - numerical issues (roundoff)
-#                print(log_prob.size())
                 # now sort and pick the highest beam_width probabilities
                 scores, indices = log_prob.topk( beam_width, -1 )
                 indices = indices.squeeze(0)
-#                print(indices.size())
-#                print( indices[0].item())
                 for i in range(beam_width):
-                    extended_stub = copy.deepcopy(stub_info[3]) #the original stub 
-#                    extended_stub = stub_info[3][:] # this will also perform the function of deepcopy
+                    extended_stub = copy.copy(stub_info[3]) #the original stub 
                     extended_stub.append( indices[i].item() )
-#                    print(scores[0][i].item())
-                    new_score = copy.deepcopy(stub_info[2])
+                    new_score = copy.copy(stub_info[2]) 
                     new_score += scores[0][i].item()
-#                    print(indices[i].size())
-#                    print(indices[i].unsqueeze(0).size())
-#                    print((indices[i].unsqueeze(0)).unsqueeze(0).size())
                     inputs = self.word_embedding( indices[i].unsqueeze(0).unsqueeze(0) )
                     store.append( [inputs, hidden_states, new_score, extended_stub] )
                 #From this store of beam_width^2 candidate extended_stubs, pick the beam_width ones with the highest new_score values
