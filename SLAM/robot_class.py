@@ -84,7 +84,8 @@ class robot:
             dx =  landmark[0] -self.x + self.rand()*self.measurement_noise 
             dy =  landmark[1] -self.y + self.rand()*self.measurement_noise
             
-            if sqrt(dx*dx + dy*dy) < self.measurement_range:
+#            if sqrt(dx*dx + dy*dy) < self.measurement_range: ### if if measurement_range is specified in terms of Euclidean distance.
+            if (abs(dx) < self.measurement_range and abs(dy) < self.measurement_range):
                 measurements.append([index, dx, dy])
         
         ## TODO: For each landmark
